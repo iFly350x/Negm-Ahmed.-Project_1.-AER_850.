@@ -1,6 +1,6 @@
 # Ahmed Negm | 501101640
 # AER 850 Assignment 1
-
+# To view the Prediction of the model (step 7) please run the file: predict_step.py
 
 #Importing required libraries and modules to do the assignment
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier  
@@ -270,4 +270,5 @@ def save_model(model, model_name='model.joblib'):
 
 # Save the SVC model after training
 save_model(best_svc_model, 'best_svc_model.joblib')
+
 
