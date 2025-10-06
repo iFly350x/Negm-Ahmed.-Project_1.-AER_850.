@@ -21,18 +21,28 @@ from pathlib import Path
 
 
 # Question 1 - Load and process data
-file_path = r'data/Project_Data.csv'
+#file_path = r'data/Project_Data.csv'
 
-def load_and_process_data(file_path):
-    """
-    This function loads the CSV data, converts it into a Pandas DataFrame, and 
-    ensures the data is ready for analysis by returning a cleaned DataFrame.
-    """
-    data = pd.read_csv(file_path)
-    #file_path = Path("data") / "Project_Data.csv"
-    return data
 
-data = load_and_process_data(file_path)
+
+def load_and_process_data(file_path: Path = Path("data") / "Project_Data.csv"):
+    """
+    Loads the CSV as a DataFrame and does basic sanity checks.
+    """
+    file_path = Path(file_path) 
+    if not file_path.exists():
+        raise FileNotFoundError(f"Could not find: {file_path.resolve()}")
+    df = pd.read_csv(file_path)
+    # basic checks 
+    expected = {'X','Y','Z','Step'}
+    missing = expected - set(df.columns)
+    if missing:
+        raise ValueError(f"this file is missing expected columns:{missing}")
+    return df
+ 
+
+data = load_and_process_data()
+
 print("Data loaded and processed:")
 #print the first few rows to confirm
 print(data.head()) 
@@ -87,57 +97,95 @@ correlation_analysis(data)
 
 # Question 4 - Train classification models
 def train_classification_models(data):
-    # these are the features we are using
-    X = data[['X', 'Y', 'Z']]  
-    # 'Step' is the  target column name
-    y = data['Step']  
-    
-    #random state 42 is to make sure the code produce the same result for the random operations
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    """
+    Trains RF, SVC, KNN with hyperparameter search.
+    Uses stratified split, scaling (for SVC/KNN), and stratified CV.
+    Returns best models + train/test splits.
+    """
+    # Features/target
+    X = data[['X', 'Y', 'Z']]
+    y = data['Step']
 
+    # Stratified train/test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    # Stratified CV
+    from sklearn.model_selection import StratifiedKFold
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+    #Random Forest
     rf_model = RandomForestClassifier(random_state=42)
-    rf_param_grid = {'n_estimators': [50, 100, 200], 'max_depth': [10, 20, None], 'min_samples_split': [2, 5, 10]}
-    
-    svc_model = SVC(random_state=42)
-    svc_param_grid = {'C': [0.1, 1, 10], 'kernel': ['linear', 'rbf'], 'gamma': ['scale', 'auto']}
-    
-    knn_model = KNeighborsClassifier()
-    knn_param_grid = {'n_neighbors': [3, 5, 7], 'weights': ['uniform', 'distance'], 'metric': ['euclidean', 'manhattan']}
-    
-    # This is GridSearchCV for Random Forest
-    grid_search_rf = GridSearchCV(estimator=rf_model, param_grid=rf_param_grid, cv=5, n_jobs=-1)
+    rf_param_grid = {
+        'n_estimators': [100, 200, 400],
+        'max_depth': [10, 20, None],
+        'min_samples_split': [2, 5, 10]
+    }
+
+    # SVC and with scaling + probabilities for stacking
+    svc_model = Pipeline([
+        ('scaler', StandardScaler()),
+        ('clf', SVC(probability=True, random_state=42))
+    ])
+    svc_param_grid = {
+        'clf__C': [0.1, 1, 10],
+        'clf__kernel': ['linear', 'rbf'],
+        'clf__gamma': ['scale', 'auto']
+    }
+
+    # KNN with scaling
+    knn_model = Pipeline([
+        ('scaler', StandardScaler()),
+        ('clf', KNeighborsClassifier())
+    ])
+    knn_param_grid = {
+        'clf__n_neighbors': [3, 5, 7, 9],
+        'clf__weights': ['uniform', 'distance'],
+        'clf__metric': ['euclidean', 'manhattan']
+    }
+
+    # this step is for Grid/Randomized Search
+    grid_search_rf = GridSearchCV(
+        estimator=rf_model, param_grid=rf_param_grid, cv=cv, n_jobs=-1
+    )
     grid_search_rf.fit(X_train, y_train)
     best_rf_model = grid_search_rf.best_estimator_
     print(f"Best Random Forest Params: {grid_search_rf.best_params_}")
 
-    # This is GridSearchCV for SVC (Support Vector Machine)
-    grid_search_svc = GridSearchCV(estimator=svc_model, param_grid=svc_param_grid, cv=5, n_jobs=-1)
+    grid_search_svc = GridSearchCV(
+        estimator=svc_model, param_grid=svc_param_grid, cv=cv, n_jobs=-1
+    )
     grid_search_svc.fit(X_train, y_train)
     best_svc_model = grid_search_svc.best_estimator_
     print(f"Best SVC Params: {grid_search_svc.best_params_}")
 
-    #this is GridSearchCV for KNN (K-Nearest Neighbors)
-    grid_search_knn = GridSearchCV(estimator=knn_model, param_grid=knn_param_grid, cv=5, n_jobs=-1)
+    grid_search_knn = GridSearchCV(
+        estimator=knn_model, param_grid=knn_param_grid, cv=cv, n_jobs=-1
+    )
     grid_search_knn.fit(X_train, y_train)
     best_knn_model = grid_search_knn.best_estimator_
     print(f"Best KNN Params: {grid_search_knn.best_params_}")
 
-    #this is RandomizedSearchCV for Random Forest
-    random_search_rf = RandomizedSearchCV(estimator=rf_model, param_distributions=rf_param_grid, n_iter=10, cv=5, n_jobs=-1, random_state=42)
+    random_search_rf = RandomizedSearchCV(
+        estimator=rf_model, param_distributions=rf_param_grid,
+        n_iter=10, cv=cv, n_jobs=-1, random_state=42
+    )
     random_search_rf.fit(X_train, y_train)
     best_rf_random_model = random_search_rf.best_estimator_
     print(f"Best Randomized RF Params: {random_search_rf.best_params_}")
 
-    # this is the Model Evaluation (Using Test Set)
+    # --- Quick test-set evaluation ---
     models = [best_rf_model, best_svc_model, best_knn_model, best_rf_random_model]
     model_names = ['Random Forest', 'SVC', 'KNN', 'Random Forest (RandomizedSearch)']
 
     for name, model in zip(model_names, models):
         y_pred = model.predict(X_test)
-        accuracy = accuracy_score(y_test, y_pred)
-        print(f"{name} Test Accuracy: {accuracy:.4f}")
-    
+        acc = accuracy_score(y_test, y_pred)
+        print(f"{name} Test Accuracy: {acc:.4f}")
+
     return best_rf_model, best_svc_model, best_knn_model, best_rf_random_model, X_train, X_test, y_train, y_test
+
 
 
 # Question 5 - Model Performance Analysis
@@ -273,6 +321,5 @@ def save_model(model, model_name='model.joblib'):
 
 # Save the SVC model after training
 save_model(best_svc_model, 'best_svc_model.joblib')
-
 
 
