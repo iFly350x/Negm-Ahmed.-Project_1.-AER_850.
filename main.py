@@ -16,6 +16,8 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import joblib
+from pathlib import Path
+
 
 
 # Question 1 - Load and process data
@@ -27,6 +29,7 @@ def load_and_process_data(file_path):
     ensures the data is ready for analysis by returning a cleaned DataFrame.
     """
     data = pd.read_csv(file_path)
+    #file_path = Path("data") / "Project_Data.csv"
     return data
 
 data = load_and_process_data(file_path)
@@ -270,5 +273,6 @@ def save_model(model, model_name='model.joblib'):
 
 # Save the SVC model after training
 save_model(best_svc_model, 'best_svc_model.joblib')
+
 
 
