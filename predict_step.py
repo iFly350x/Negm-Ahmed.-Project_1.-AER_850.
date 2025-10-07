@@ -1,5 +1,6 @@
 #Ahmed Negm | 501101640 
 # AER 850 Machine Learning 
+# This file will use the trained model to run the prediction based on the given coordinates 
 
 import joblib  # Import joblib to load the model
 import pandas as pd  
@@ -26,3 +27,4 @@ predictions = loaded_model.predict(df_coordinates)
 print("Predictions for the given coordinates:")
 for coord, pred in zip(coordinates, predictions):
     print(f"Coordinates: {coord} -> Predicted Maintenance Step: {pred}")
+
