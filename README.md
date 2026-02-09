@@ -1,12 +1,3 @@
-# Negm-Ahmed.-Project_1.-AER_850.
-AER 850 Project_1. 
-
-Course: AER 850 – Intro to Machine Learning
-
-Instructor: Dr. Reza Faieghi
-
-Student: Ahmed Negm (XXXXX1640)
-Due: Oct 6, 2025, 11:59 PM
 
 1) Project Overview
 
